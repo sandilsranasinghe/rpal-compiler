@@ -1,12 +1,13 @@
 #include "tokenizer.h"
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
 #include <string.h>
 
 static struct lex_state LEX_STATE;
-static char *ALL_PUNCTUATION = "(),;=&|~+-*/>";
+static char ALL_PUNCTUATION[] = "(),;=|+-*/>";
 static int token_count;
+static int token_merged = 0;
 
 static void get_next_char(FILE *fp);
 static void increment_line();
@@ -17,22 +18,33 @@ static struct rpal_token *read_string(FILE *fp);
 static struct rpal_token *read_punctuation(FILE *fp);
 static void read_comment(FILE *fp);
 
-static int is_comment(FILE *fp);
+static struct rpal_token *screen_identifier(struct rpal_token *token);
+static struct rpal_token *screen_punctuation(struct rpal_token *token,
+                                             struct rpal_token *next_token);
 
-// Tokenize the code in the given file. This is the entry point for the tokenizer.
-// Returns an array of tokens.
+static int is_comment(FILE *fp);
+static struct rpal_token *copy_token(const struct rpal_token *token);
+
+// Tokenize the code in the given file. This is the entry point for the
+// tokenizer. Returns an array of tokens.
 struct rpal_token **tokenize(FILE *fp)
 {
     LEX_STATE.line_number = 1;
     LEX_STATE.column_number = 0;
 
-    struct rpal_token **tokens = screen(scan(fp));
-    return tokens;
+    struct rpal_token **tokens = scan(fp);
+    struct rpal_token **screened_tokens = screen((const struct rpal_token **)tokens);
+
+    // return tokens;
+    clean_tokens(tokens);
+
+    return screened_tokens;
 }
 
-// Do a preliminary scan of the code to recognize tokens as identifiers, integers, punctuation,
-// or strings. NOTE that we will discard whitespace, comments and EOL characters here. This is the
-// first step in the tokenization process.
+// Do a preliminary scan of the code to recognize tokens as identifiers,
+// integers, punctuation, or strings. NOTE that we will discard whitespace,
+// comments and EOL characters here. This is the first step in the tokenization
+// process.
 struct rpal_token **scan(FILE *fp)
 {
     token_count = 0;
@@ -104,10 +116,10 @@ struct rpal_token **scan(FILE *fp)
         else
         {
             printf("Error: unrecognized character %c at line %d col %d\n",
-                   LEX_STATE.current_char,
-                   LEX_STATE.line_number,
-                   LEX_STATE.column_number-1);
-            // TODO we might want to finish scanning the file before exiting to catch all errors
+                   LEX_STATE.current_char, LEX_STATE.line_number,
+                   LEX_STATE.column_number - 1);
+            // TODO we might want to finish scanning the file before exiting to catch
+            // all errors
             exit(0);
         }
 
@@ -130,7 +142,8 @@ struct rpal_token *read_identifier(FILE *fp)
 
     while (LEX_STATE.current_char != EOF)
     {
-        if (isalpha(LEX_STATE.current_char) || isdigit(LEX_STATE.current_char) || LEX_STATE.current_char == '_')
+        if (isalpha(LEX_STATE.current_char) || isdigit(LEX_STATE.current_char) ||
+            LEX_STATE.current_char == '_')
         {
             identifier[i] = LEX_STATE.current_char;
             i++;
@@ -175,8 +188,7 @@ struct rpal_token *read_integer(FILE *fp)
         else if (isalpha(LEX_STATE.current_char))
         {
             printf("Error: invalid integer at line %d col %d\n",
-                   LEX_STATE.line_number,
-                   LEX_STATE.column_number-1);
+                   LEX_STATE.line_number, LEX_STATE.column_number - 1);
             exit(0);
         }
         else
@@ -188,8 +200,7 @@ struct rpal_token *read_integer(FILE *fp)
         {
             // TODO how to handle this? Also check if there is an actual limit
             printf("Error: integer too large at line %d col %d\n",
-                   LEX_STATE.line_number,
-                   LEX_STATE.column_number-1);
+                   LEX_STATE.line_number, LEX_STATE.column_number - 1);
             exit(0);
         }
 
@@ -242,8 +253,9 @@ void read_comment(FILE *fp)
     }
 }
 
-// Note that we will be reading only a single punctuation per token here. `->` would be read
-// as 2 tokens here and will need to be handled later during screening
+// Note that we will be reading only a single punctuation per token here. `->`
+// would be read as 2 tokens here and will need to be handled later during
+// screening
 struct rpal_token *read_punctuation(FILE *fp)
 {
     char *punctuation = malloc(sizeof(char) * 2);
@@ -301,35 +313,163 @@ struct rpal_token *read_string(FILE *fp)
     return token;
 }
 
-struct rpal_token **screen(struct rpal_token **tokens)
+struct rpal_token **screen(const struct rpal_token **tokens)
 {
-    struct rpal_token **screened_tokens = malloc(sizeof(struct rpal_token *) * (token_count + 1));
-    struct rpal_token *token;
+    struct rpal_token **screened_tokens =
+        malloc(sizeof(struct rpal_token *) * (token_count + 1));
+    int skipped = 0;
+    int i;
+    token_merged = 0;
 
-    for (int i = 0; i < token_count; i++)
+    for (i = 0; i + skipped < token_count; i++)
     {
-        token = tokens[i];
-        switch (token->tkn_type)
+        if (token_merged)
+        {
+            token_merged = 0;
+            skipped += 1;
+        }
+
+        switch (tokens[i + skipped]->tkn_type)
         {
         case RPAL_TOKEN_IDENTIFIER:
-            /* code */
+            screened_tokens[i] = screen_identifier(copy_token((const struct rpal_token *)tokens[i + skipped]));
+            break;
+
+        case RPAL_TOKEN_PUNCTUATION:
+            if (i + skipped + 1 < token_count) {
+                screened_tokens[i] = screen_punctuation(
+                copy_token((const struct rpal_token *)tokens[i + skipped]),
+                copy_token((const struct rpal_token *)tokens[i + skipped + 1]));
+            } else {
+                screened_tokens[i] = copy_token((const struct rpal_token *)tokens[i + skipped]);
+            }
             break;
 
         default:
+            screened_tokens[i] = copy_token((const struct rpal_token *)tokens[i + skipped]);
             break;
         }
     }
 
     struct rpal_token *end_token = malloc(sizeof(struct rpal_token));
     end_token->tkn_type = RPAL_TOKEN_END;
-    end_token->tkn_value = NULL;
-    screened_tokens[token_count] = end_token;
+    end_token->tkn_value = "$";
+    screened_tokens[i] = end_token;
 
-    return tokens;
+    screened_tokens = realloc(screened_tokens, sizeof(struct rpal_token *) * (i + 2));
+
+    return screened_tokens;
 }
 
-struct rpal_token *update_if_keyword(struct rpal_token *token)
+// if token value matches a keyword, identify it as a keyword
+struct rpal_token *screen_identifier(struct rpal_token *token)
 {
+    if (strcmp(token->tkn_value, "rec") == 0)
+    {
+        token->tkn_type = RPAL_TOKEN_KEYWORD;
+    }
+    else if (strcmp(token->tkn_value, "where") == 0)
+    {
+        token->tkn_type = RPAL_TOKEN_KEYWORD;
+    }
+    else if (strcmp(token->tkn_value, "in") == 0)
+    {
+        token->tkn_type = RPAL_TOKEN_KEYWORD;
+    }
+    else if (strcmp(token->tkn_value, "and") == 0)
+    {
+        token->tkn_type = RPAL_TOKEN_KEYWORD;
+    }
+    else if (strcmp(token->tkn_value, "let") == 0)
+    {
+        token->tkn_type = RPAL_TOKEN_KEYWORD;
+    }
+    else if (strcmp(token->tkn_value, "fn") == 0)
+    {
+        token->tkn_type = RPAL_TOKEN_KEYWORD;
+    }
+    else if (strcmp(token->tkn_value, "or") == 0)
+    {
+        token->tkn_type = RPAL_TOKEN_KEYWORD;
+    }
+    else if (strcmp(token->tkn_value, "not") == 0)
+    {
+        token->tkn_type = RPAL_TOKEN_KEYWORD;
+    }
+    else if (strcmp(token->tkn_value, "gr") == 0)
+    {
+        token->tkn_type = RPAL_TOKEN_KEYWORD;
+    }
+    else if (strcmp(token->tkn_value, "ge") == 0)
+    {
+        token->tkn_type = RPAL_TOKEN_KEYWORD;
+    }
+    else if (strcmp(token->tkn_value, "ls") == 0)
+    {
+        token->tkn_type = RPAL_TOKEN_KEYWORD;
+    }
+    else if (strcmp(token->tkn_value, "le") == 0)
+    {
+        token->tkn_type = RPAL_TOKEN_KEYWORD;
+    }
+    else if (strcmp(token->tkn_value, "eq") == 0)
+    {
+        token->tkn_type = RPAL_TOKEN_KEYWORD;
+    }
+    else if (strcmp(token->tkn_value, "ne") == 0)
+    {
+        token->tkn_type = RPAL_TOKEN_KEYWORD;
+    }
+    else if (strcmp(token->tkn_value, "within") == 0)
+    {
+        token->tkn_type = RPAL_TOKEN_KEYWORD;
+    }
+    else if (strcmp(token->tkn_value, "true") == 0)
+    {
+        token->tkn_type = RPAL_TOKEN_KEYWORD;
+    }
+    else if (strcmp(token->tkn_value, "false") == 0)
+    {
+        token->tkn_type = RPAL_TOKEN_KEYWORD;
+    }
+    else if (strcmp(token->tkn_value, "nil") == 0)
+    {
+        token->tkn_type = RPAL_TOKEN_KEYWORD;
+    }
+    else if (strcmp(token->tkn_value, "dummy") == 0)
+    {
+        token->tkn_type = RPAL_TOKEN_KEYWORD;
+    }
+    else if (strcmp(token->tkn_value, "aug") == 0)
+    {
+        token->tkn_type = RPAL_TOKEN_KEYWORD;
+    }
+    return token;
+}
+
+// identify punctuation tokens that are more than 1 character long
+// identify operators and other punctuation
+struct rpal_token *screen_punctuation(struct rpal_token *token,
+                                      struct rpal_token *next_token)
+{
+    if (!strcmp(token->tkn_value, "-") &&
+        (next_token->tkn_type == RPAL_TOKEN_PUNCTUATION &&
+         !strcmp(next_token->tkn_value, ">")))
+    {
+        token->tkn_type = RPAL_TOKEN_OPERATOR;
+        char *op = "->";
+        token->tkn_value = op;
+        token_merged = 1;
+    }
+    if (
+        strcmp("(", token->tkn_value) &&
+        strcmp(")", token->tkn_value) &&
+        strcmp(",", token->tkn_value) &&
+        strcmp(";", token->tkn_value))
+    {
+        token->tkn_type = RPAL_TOKEN_OPERATOR;
+    }
+
     return token;
 }
 
@@ -343,4 +483,19 @@ void increment_line()
 {
     LEX_STATE.line_number++;
     LEX_STATE.column_number = 1;
+}
+
+struct rpal_token *copy_token(const struct rpal_token *token)
+{
+    struct rpal_token *new_token = malloc(sizeof(struct rpal_token));
+    new_token->tkn_type = token->tkn_type;
+
+    char *_tkn_value = malloc(sizeof(char) * (strlen(token->tkn_value) + 1));
+    strcpy(_tkn_value, token->tkn_value);
+
+    new_token->tkn_value = _tkn_value;
+    new_token->line_number = token->line_number;
+    new_token->column_number = token->column_number;
+
+    return new_token;
 }

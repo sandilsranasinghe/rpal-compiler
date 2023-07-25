@@ -31,7 +31,7 @@ struct rpal_token
 
 struct rpal_token **tokenize(FILE *fp);
 struct rpal_token **scan(FILE *fp);
-struct rpal_token **screen(struct rpal_token **tokens);
+struct rpal_token **screen(const struct rpal_token **tokens);
 
 void clean_tokens(struct rpal_token **tokens);
 

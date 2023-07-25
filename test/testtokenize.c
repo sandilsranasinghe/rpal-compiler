@@ -1,5 +1,5 @@
-#include "tokenizer.h"
 #include <stdio.h>
+#include "../tokenizer.h"
 
 int main(int argc, char *argv[]) {
     // get file name from argv
@@ -17,10 +17,8 @@ int main(int argc, char *argv[]) {
         i++;
     }
 
-    // TODO fix memory leak
-
     // clear tokens from memory
-    // clean_tokens(tokens);
+    clean_tokens(tokens);
 
     // close file
     fclose(fp);
