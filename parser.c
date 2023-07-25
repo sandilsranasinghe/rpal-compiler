@@ -48,6 +48,10 @@ typedef enum
     ASTNodeType_WITHIN,
     ASTNodeType_SIMULTDEF,
     ASTNodeType_REC,
+    ASTNodeType_COMMA,
+    ASTNodeType_EQUAL,
+    ASTNodeType_FCNFORM,
+    ASTNodeType_PAREN
     // Add other node types as needed
 } ASTNodeType;
 
@@ -499,5 +503,134 @@ void procD()
         readNT();
         procD();
         buildNAryASTNode(ASTNodeType_WITHIN, 2);
+    }
+}
+
+void procDB()
+{
+    printf("procDB\n");
+
+    if (isCurrentTokenType(L_PAREN))
+    { // Db -> '(' D ')'
+        readNT();
+        procD();
+        readNT();
+        if (!isCurrentTokenType(R_PAREN))
+        {
+            printf("DB: ')' expected\n"); // Replace with appropriate error handling
+        }
+        readNT();
+    }
+    else if (isCurrentTokenType(IDENTIFIER))
+    {
+        readNT();
+        if (isCurrentToken(OPERATOR, ","))
+        { // Db -> Vl '=' E => '='
+            readNT();
+            procVB(); // extra readNT in procVB()
+            // VL makes its COMMA nodes for all the tokens EXCEPT the ones
+            // we just read above (i.e., the first identifier and the comma after it)
+            // Hence, we must pop the top of the tree VL just made and put it under a
+            // comma node with the identifier it missed.
+            if (!isCurrentToken(OPERATOR, "="))
+            {
+                printf("DB: = expected.\n"); // Replace with appropriate error handling
+            }
+            buildNAryASTNode(ASTNodeType_COMMA, 2);
+            readNT();
+            procE(); // extra readNT in procE()
+            buildNAryASTNode(ASTNodeType_EQUAL, 2);
+        }
+        else
+        { // Db -> '<IDENTIFIER>' Vb+ '=' E => 'fcn_form'
+            if (isCurrentToken(OPERATOR, "="))
+            { // Db -> Vl '=' E => '='; if Vl had only one IDENTIFIER (no commas)
+                readNT();
+                procE(); // extra readNT in procE()
+                buildNAryASTNode(ASTNodeType_EQUAL, 2);
+            }
+            else
+            { // Db -> '<IDENTIFIER>' Vb+ '=' E => 'fcn_form'
+                int treesToPop = 0;
+
+                while (isCurrentTokenType(IDENTIFIER) || isCurrentTokenType(L_PAREN))
+                {
+                    procVB(); // extra readNT in procVB()
+                    treesToPop++;
+                }
+
+                if (treesToPop == 0)
+                {
+                    printf("E: at least one 'Vb' expected\n"); // Replace with appropriate error handling
+                }
+
+                if (!isCurrentToken(OPERATOR, "="))
+                {
+                    printf("DB: = expected.\n"); // Replace with appropriate error handling
+                }
+
+                readNT();
+                procE(); // extra readNT in procE()
+
+                buildNAryASTNode(ASTNodeType_FCNFORM, treesToPop + 2); // +1 for the last E and +1 for the first identifier
+            }
+        }
+    }
+}
+
+void procVB()
+{
+    printf("procVB\n");
+
+    if (isCurrentTokenType(IDENTIFIER))
+    { // Vb -> '<IDENTIFIER>'
+        readNT();
+    }
+    else if (isCurrentTokenType(L_PAREN))
+    {
+        readNT();
+        if (isCurrentTokenType(R_PAREN))
+        { // Vb -> '(' ')' => '()'
+            createTerminalASTNode(ASTNodeType_PAREN, "");
+            readNT();
+        }
+        else
+        {             // Vb -> '(' Vl ')'
+            procVL(); // extra readNT in procVB()
+            if (!isCurrentTokenType(R_PAREN))
+            {
+                printf("VB: ')' expected\n"); // Replace with appropriate error handling
+            }
+            readNT();
+        }
+    }
+}
+
+void procVL()
+{
+    printf("procVL\n");
+
+    if (!isCurrentTokenType(IDENTIFIER))
+    {
+        printf("VL: Identifier expected\n"); // Replace with appropriate error handling
+    }
+    else
+    {
+        readNT();
+        int treesToPop = 0;
+        while (isCurrentToken(OPERATOR, ","))
+        { // Vl -> '<IDENTIFIER>' list ',' => ','?;
+            readNT();
+            if (!isCurrentTokenType(IDENTIFIER))
+            {
+                printf("VL: Identifier expected\n"); // Replace with appropriate error handling
+            }
+            readNT();
+            treesToPop++;
+        }
+        if (treesToPop > 0)
+        {
+            buildNAryASTNode(ASTNodeType_COMMA, treesToPop + 1); // +1 for the first identifier
+        }
     }
 }
