@@ -3,6 +3,13 @@
 
 #include <stdio.h>
 
+struct lex_state
+{
+    int line_number;
+    int column_number;
+    int current_char;
+};
+
 enum rpal_token_type
 {
     RPAL_TOKEN_IDENTIFIER,
@@ -18,6 +25,8 @@ struct rpal_token
 {
     enum rpal_token_type tkn_type;
     char *tkn_value;
+    int line_number;
+    int column_number;
 };
 
 struct rpal_token **tokenize(FILE *fp);
