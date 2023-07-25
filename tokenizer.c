@@ -6,6 +6,7 @@
 
 static char CURRENT_CHAR;
 static char *ALL_PUNCTUATION = "(),;=&|~+-*/>";
+static int token_count;
 
 static struct rpal_token *read_identifier(FILE *fp);
 static struct rpal_token *read_integer(FILE *fp);
@@ -19,8 +20,7 @@ static int is_comment(FILE *fp);
 // Returns an array of tokens.
 struct rpal_token **tokenize(FILE *fp)
 {
-    struct rpal_token **tokens = scan(fp);
-
+    struct rpal_token **tokens = screen(scan(fp));
     return tokens;
 }
 
@@ -29,7 +29,7 @@ struct rpal_token **tokenize(FILE *fp)
 // first step in the tokenization process.
 struct rpal_token **scan(FILE *fp)
 {
-    int token_count = 0;
+    token_count = 0;
     int array_size = 16;
     // TODO consider if we want to implement our own linked list structure instead
     struct rpal_token **tokens = malloc(sizeof(struct rpal_token *) * array_size);
@@ -39,7 +39,7 @@ struct rpal_token **scan(FILE *fp)
     while (CURRENT_CHAR != EOF)
     {
         // read identifier
-        if (isalpha(CURRENT_CHAR) | CURRENT_CHAR == '_')
+        if (isalpha(CURRENT_CHAR))
         {
             token = read_identifier(fp);
             tokens[token_count] = token;
@@ -84,7 +84,7 @@ struct rpal_token **scan(FILE *fp)
             tokens[token_count] = token;
             token_count++;
         }
-        // discard whitespace, comments and EOL characters
+        // discard whitespace and EOL characters
         else if (CURRENT_CHAR == '\n')
         {
             CURRENT_CHAR = fgetc(fp);
@@ -114,7 +114,8 @@ struct rpal_token **scan(FILE *fp)
 struct rpal_token *read_identifier(FILE *fp)
 {
     // read the rest of the identifier
-    char *identifier = malloc(sizeof(char) * 8);
+    int idt_size = 8;
+    char *identifier = malloc(sizeof(char) * (idt_size + 1));
     identifier[0] = CURRENT_CHAR;
     int i = 1;
 
@@ -129,7 +130,15 @@ struct rpal_token *read_identifier(FILE *fp)
         {
             break;
         }
+
+        if (i > idt_size - 2)
+        {
+            idt_size += 8;
+            identifier = realloc(identifier, sizeof(char) * (idt_size + 1));
+        }
     }
+
+    identifier[i] = '\0';
 
     struct rpal_token *token = malloc(sizeof(struct rpal_token));
     token->tkn_type = RPAL_TOKEN_IDENTIFIER;
@@ -141,7 +150,8 @@ struct rpal_token *read_identifier(FILE *fp)
 struct rpal_token *read_integer(FILE *fp)
 {
     // read the rest of the integer
-    char *integer = malloc(sizeof(char) * 8);
+    int int_size = 8;
+    char *integer = malloc(sizeof(char) * (int_size + 1));
     integer[0] = CURRENT_CHAR;
     int i = 1;
 
@@ -155,6 +165,12 @@ struct rpal_token *read_integer(FILE *fp)
         else
         {
             break;
+        }
+
+        if (i >= int_size) {
+            // TODO how to handle this? Also check if there is an actual limit
+            printf("Error: integer too large\n");
+            exit(1);
         }
     }
 
@@ -204,7 +220,7 @@ void read_comment(FILE *fp)
 struct rpal_token *read_punctuation(FILE *fp)
 {
     // read the rest of the punctuation
-    char *punctuation = malloc(sizeof(char) * 3);
+    char *punctuation = malloc(sizeof(char) * 2);
     punctuation[0] = CURRENT_CHAR;
     int i = 1;
 
@@ -231,7 +247,8 @@ struct rpal_token *read_punctuation(FILE *fp)
 struct rpal_token *read_string(FILE *fp)
 {
     // read the rest of the string
-    char *string = malloc(sizeof(char) * 8);
+    int str_size = 8;
+    char *string = malloc(sizeof(char) * (str_size + 1));
     string[0] = CURRENT_CHAR;
     int i = 1;
 
@@ -248,13 +265,52 @@ struct rpal_token *read_string(FILE *fp)
             string[i] = CURRENT_CHAR;
             i++;
         }
+
+        if (i > str_size - 2)
+        {
+            str_size += 8;
+            string = realloc(string, sizeof(char) * (str_size + 1));
+        }
     }
+    string[i] = '\0';
 
     struct rpal_token *token = malloc(sizeof(struct rpal_token));
     token->tkn_type = RPAL_TOKEN_STRING;
     token->tkn_value = string;
 
     CURRENT_CHAR = fgetc(fp);
+
+    return token;
+}
+
+struct rpal_token **screen(struct rpal_token **tokens)
+{
+    struct rpal_token **screened_tokens = malloc(sizeof(struct rpal_token *) * (token_count+1));
+    struct rpal_token *token;
+
+    for (int i = 0; i < token_count; i++)
+    {
+        token = tokens[i];
+        switch (token->tkn_type)
+        {
+        case RPAL_TOKEN_IDENTIFIER:
+            /* code */
+            break;
+        
+        default:
+            break;
+        }
+    }
+
+    struct rpal_token *end_token = malloc(sizeof(struct rpal_token));
+    end_token->tkn_type = RPAL_TOKEN_END;
+    end_token->tkn_value = NULL;
+    screened_tokens[token_count] = end_token;
+
+    return tokens;
+}
+
+struct rpal_token *update_if_keyword(struct rpal_token *token) {
 
     return token;
 }

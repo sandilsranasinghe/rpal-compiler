@@ -10,7 +10,8 @@ enum rpal_token_type
     RPAL_TOKEN_PUNCTUATION,
     RPAL_TOKEN_STRING,
     RPAL_TOKEN_KEYWORD,
-    RPAL_TOKEN_OPERATOR
+    RPAL_TOKEN_OPERATOR,
+    RPAL_TOKEN_END
 };
 
 struct rpal_token
