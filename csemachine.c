@@ -3,6 +3,24 @@
 
 // Assuming you have already implemented the necessary data structures like Stack, ASTNode, Delta, Environment, etc.
 
+#define true 1
+#define false 0
+
+typedef enum
+{
+    ASTNodeType_FALSE,
+    ASTNodeType_TRUE,
+    ASTNodeType_OR,
+    ASTNodeType_TUPLE,
+    // Add other node types as needed
+} ASTNodeType;
+
+typedef struct
+{
+    ASTNodeType type;
+    char *value;
+} ASTNode;
+
 typedef struct
 {
     Stack *valueStack;
