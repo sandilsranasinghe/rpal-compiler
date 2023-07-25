@@ -13,7 +13,7 @@ int main(int argc, char *argv[]) {
     // print all token values
     int i = 0;
     while (tokens[i] != NULL) {
-        printf("%s ", tokens[i]->tkn_value);
+        printf("%s -- %d\n", tokens[i]->tkn_value, tokens[i]->tkn_type);
         i++;
     }
 
