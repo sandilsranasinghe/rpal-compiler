@@ -1,0 +1,6 @@
+*.o
+*.out.txt
+rpal
+rpal20
+__pycache__
+.vscode
