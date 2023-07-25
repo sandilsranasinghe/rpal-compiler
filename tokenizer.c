@@ -217,29 +217,19 @@ void read_comment(FILE *fp)
     }
 }
 
+// Note that we will be reading only a single punctuation per token here. `->` would be read
+// as 2 tokens here and will need to be handled later during screening
 struct rpal_token *read_punctuation(FILE *fp)
 {
-    // read the rest of the punctuation
     char *punctuation = malloc(sizeof(char) * 2);
     punctuation[0] = CURRENT_CHAR;
-    int i = 1;
-
-    while ((CURRENT_CHAR = fgetc(fp)) != EOF)
-    {
-        if (strchr(ALL_PUNCTUATION, CURRENT_CHAR) != NULL)
-        {
-            punctuation[i] = CURRENT_CHAR;
-            i++;
-        }
-        else
-        {
-            break;
-        }
-    }
+    punctuation[1] = '\0';
 
     struct rpal_token *token = malloc(sizeof(struct rpal_token));
     token->tkn_type = RPAL_TOKEN_PUNCTUATION;
     token->tkn_value = punctuation;
+
+    CURRENT_CHAR = fgetc(fp);
 
     return token;
 }
