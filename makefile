@@ -1,8 +1,9 @@
-rpal:
-	gcc rpal.c -o rpal.o
+rpal: rpal.c tokenizer.c
+	gcc -o rpal20 rpal.c tokenizer.c -I .
 
 clean:
-	rm -f *.o
+	rm -f *.o rpal20
+	@$(MAKE) -C test clean
 
 test: rpal
-	./rpal.o sample.rpal
+	@$(MAKE) -C test test

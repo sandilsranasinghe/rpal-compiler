@@ -1,4 +1,4 @@
-// #include "tokenizer.h"
+#include "tokenizer.h"
 #include <stdio.h>
 
 int main(int argc, char *argv[]) {
@@ -8,11 +8,17 @@ int main(int argc, char *argv[]) {
     // open file
     FILE *fp = fopen(filename, "r");
 
-    // read file
-    char c;
-    while ((c = fgetc(fp)) != EOF) {
-        printf("%c", c);
+    struct rpal_token **tokens = tokenize(fp);
+
+    // print all token values
+    int i = 0;
+    while (tokens[i] != NULL) {
+        printf("%s ", tokens[i]->tkn_value);
+        i++;
     }
+
+    // clear tokens from memory
+    clean_tokens(tokens);
 
     // close file
     fclose(fp);
