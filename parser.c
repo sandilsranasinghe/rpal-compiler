@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 // Define ASTNodeType as an enum
 typedef enum
@@ -13,6 +14,7 @@ typedef enum
     INTEGER,
     STRING,
     R_PAREN,
+    DELETE,
     // Add other token types as needed
 } TokenType;
 
@@ -55,17 +57,199 @@ typedef enum
     // Add other node types as needed
 } ASTNodeType;
 
-typedef struct
-{
-    TokenType type;
-    char *value;
-} Token;
 
-Token currentToken;
-
-typedef int bool;
+// typedef int bool;
 #define true 1
 #define false 0
+
+typedef struct {
+    ASTNodeType type;
+    char* value;
+} ASTNode;
+
+typedef struct {
+    Token* array;
+    int size;
+    int capacity;
+} Scanner;
+
+typedef struct {
+    Scanner* s;
+    Token* currentToken;
+    Stack* stack;
+} Parser;
+
+// Define token types (you may need to adjust these based on your language)
+typedef enum {
+    IDENTIFIER,
+    INTEGER,
+    STRING,
+    DELETE // TokenType.DELETE from Java
+} TokenType;
+
+// Define AST node types (you may need to adjust these based on your language)
+typedef enum {
+    ASTNodeType_IDENTIFIER,
+    ASTNodeType_INTEGER,
+    ASTNodeType_STRING,
+    // Add more node types as needed
+} ASTNodeType;
+
+// Token structure
+typedef struct {
+    TokenType type;
+    char* value;
+    int sourceLineNumber;
+} Token;
+
+// AST node structure
+typedef struct ASTNode {
+    ASTNodeType type;
+    char* value;
+    int sourceLineNumber;
+    struct ASTNode* child;
+    struct ASTNode* sibling;
+} ASTNode;
+
+// Stack structure
+typedef struct {
+    ASTNode** arr;
+    int top;
+    int capacity;
+} Stack;
+
+ASTNode* buildNAryASTNode(ASTNodeType type, int ariness);
+bool isCurrentTokenType(TokenType type);
+void readNT();
+void procE();
+void startParse();
+ASTNode* buildAST();
+
+// Global variables
+static Stack stack;
+static Token currentToken;
+
+// Initialize the stack
+void initStack(int capacity) {
+    stack.arr = (ASTNode**)malloc(sizeof(ASTNode*) * capacity);
+    stack.top = -1;
+    stack.capacity = capacity;
+}
+
+// Push an element to the stack
+void push(ASTNode* node) {
+    stack.top++;
+    stack.arr[stack.top] = node;
+}
+
+// Pop an element from the stack
+ASTNode* pop() {
+    ASTNode* node = stack.arr[stack.top];
+    stack.top--;
+    return node;
+}
+
+// Check if the stack is empty
+bool isEmpty() {
+    return stack.top == -1;
+}
+
+// Main function
+int main() {
+    // Initialize the stack with a suitable capacity (adjust if needed)
+    initStack(100);
+
+    // Initialize your Scanner and read tokens as needed
+    // Assuming you have a function to read tokens called readNextToken()
+
+    // Call buildAST() to start parsing and building the AST
+    ASTNode* astRoot = buildAST();
+
+    // Use the generated AST as needed (e.g., evaluate, generate code, etc.)
+
+    // Free the memory used by the stack and AST
+    free(stack.arr);
+    // Free any other dynamically allocated memory
+
+    return 0;
+}
+
+// Implementation of the functions
+ASTNode* createTerminalASTNode(ASTNodeType type, char* value, int sourceLineNumber) {
+    ASTNode* node = (ASTNode*)malloc(sizeof(ASTNode));
+    node->type = type;
+    node->value = value;
+    node->sourceLineNumber = sourceLineNumber;
+    node->child = NULL;
+    node->sibling = NULL;
+    return node;
+}
+
+ASTNode* buildNAryASTNode(ASTNodeType type, int ariness) {
+    ASTNode* node = (ASTNode*)malloc(sizeof(ASTNode));
+    node->type = type;
+    node->value = NULL;
+    node->sourceLineNumber = -1;
+    node->child = NULL;
+    node->sibling = NULL;
+
+    while (ariness > 0) {
+        ASTNode* child = pop();
+        if (node->child != NULL)
+            child->sibling = node->child;
+        node->child = child;
+        node->sourceLineNumber = child->sourceLineNumber;
+        ariness--;
+    }
+
+    return node;
+}
+
+bool isCurrentTokenType(TokenType type) {
+    return (currentToken.type == type);
+}
+
+void readNT() {
+    do {
+        // currentToken = readNextToken();
+    } while (isCurrentTokenType(DELETE));
+
+    if (currentToken.value != NULL) {
+        if (currentToken.type == IDENTIFIER) {
+            ASTNode* node = createTerminalASTNode(ASTNodeType_IDENTIFIER, currentToken.value, currentToken.sourceLineNumber);
+            push(node);
+        } else if (currentToken.type == INTEGER) {
+            ASTNode* node = createTerminalASTNode(ASTNodeType_INTEGER, currentToken.value, currentToken.sourceLineNumber);
+            push(node);
+        } else if (currentToken.type == STRING) {
+            ASTNode* node = createTerminalASTNode(ASTNodeType_STRING, currentToken.value, currentToken.sourceLineNumber);
+            push(node);
+        }
+    }
+}
+
+void startParse() {
+    readNT();
+    procE();
+    if (currentToken.value != NULL)
+        printf("Expected EOF.\n");
+}
+
+ASTNode* buildAST() {
+    startParse();
+    return pop();
+}
+
+ASTNode* createTerminalASTNode(ASTNodeType type, char* value, int sourceLineNumber) {
+    ASTNode* node = (ASTNode*)malloc(sizeof(ASTNode));
+    node->type = type;
+    node->value = value;
+    node->sourceLineNumber = sourceLineNumber;
+    node->child = NULL;
+    node->sibling = NULL;
+    push(node);
+    return node;
+}
 
 void procE()
 {
@@ -398,17 +582,17 @@ void procRN()
     }
     else if (isCurrentToken(RESERVED, "true"))
     { // R -> 'true' => 'true'
-        createTerminalASTNode(ASTNodeType_TRUE, "true");
+        createTerminalASTNode(ASTNodeType_TRUE, "true", currentToken.sourceLineNumber);
         readNT();
     }
     else if (isCurrentToken(RESERVED, "false"))
     { // R -> 'false' => 'false'
-        createTerminalASTNode(ASTNodeType_FALSE, "false");
+        createTerminalASTNode(ASTNodeType_FALSE, "false", currentToken.sourceLineNumber);
         readNT();
     }
     else if (isCurrentToken(RESERVED, "nil"))
     { // R -> 'nil' => 'nil'
-        createTerminalASTNode(ASTNodeType_NIL, "nil");
+        createTerminalASTNode(ASTNodeType_NIL, "nil", currentToken.sourceLineNumber);
         readNT();
     }
     else if (isCurrentTokenType(L_PAREN))
@@ -423,7 +607,7 @@ void procRN()
     }
     else if (isCurrentToken(RESERVED, "dummy"))
     { // R -> 'dummy' => 'dummy'
-        createTerminalASTNode(ASTNodeType_DUMMY, "dummy");
+        createTerminalASTNode(ASTNodeType_DUMMY, "dummy", currentToken.sourceLineNumber);
         readNT();
     }
 }
@@ -591,7 +775,7 @@ void procVB()
         readNT();
         if (isCurrentTokenType(R_PAREN))
         { // Vb -> '(' ')' => '()'
-            createTerminalASTNode(ASTNodeType_PAREN, "");
+            createTerminalASTNode(ASTNodeType_PAREN, "", currentToken.sourceLineNumber);
             readNT();
         }
         else
