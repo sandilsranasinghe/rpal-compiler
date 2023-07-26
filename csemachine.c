@@ -12,6 +12,12 @@ typedef enum
     ASTNodeType_TRUE,
     ASTNodeType_OR,
     ASTNodeType_TUPLE,
+    ASTNodeType_INTEGER,
+    ASTNodeType_DELTA,
+    ASTNodeType_YSTAR,
+    ASTNodeType_ETA,
+    ASTNodeType_STRING,
+    ASTNodeType_DUMMY
     // Add other node types as needed
 } ASTNodeType;
 
@@ -23,9 +29,68 @@ typedef struct
 
 typedef struct
 {
+    Delta *delta;
+} Eta;
+
+typedef struct EnvironmentNode
+{
+    char *key;
+    ASTNode value;
+    struct EnvironmentNode *next;
+} EnvironmentNode;
+
+// Define Environment struct in C
+typedef struct
+{
+    EnvironmentNode *head;
+    struct Environment *parent;
+} Environment;
+
+typedef struct
+{
+    ASTNode **arr;
+    int top;
+    int capacity;
+} Stack;
+typedef struct ListNode
+{
+    char *data;
+    struct ListNode *next;
+} ListNode;
+
+// Define List struct in C
+typedef struct
+{
+    ListNode *head;
+} List;
+
+typedef struct Delta
+{
+    ASTNodeType type;
+    List *boundVars;        // List of strings (char* in C) representing bound variables
+    Environment *linkedEnv; // Pointer to Environment representing linked environment
+    Stack *body;            // Pointer to Stack (not a standard type in C) of ASTNode pointers
+    int index;
+} Delta;
+
+typedef struct
+{
     Stack *valueStack;
     Delta *rootDelta;
 } CSEMachine;
+
+typedef struct EnvironmentBinding
+{
+    char *identifier;
+    ASTNode *value;
+    struct EnvironmentBinding *next;
+} EnvironmentBinding;
+
+// Define the Environment structure
+typedef struct
+{
+    EnvironmentBinding *head;
+} Environment;
 
 // Function prototypes
 CSEMachine *createCSEMachine(AST *ast);
@@ -33,7 +98,79 @@ void evaluateProgram(CSEMachine *cseMachine);
 void processControlStack(CSEMachine *cseMachine, Delta *currentDelta, Environment *currentEnv);
 void processCurrentNode(CSEMachine *cseMachine, Delta *currentDelta, Environment *currentEnv, Stack *currentControlStack);
 
-CSEMachine *createCSEMachine(AST *ast)
+public
+class ASTNode
+{
+private
+    ASTNodeType type;
+private
+    String value;
+private
+    int sourceLineNumber;
+private
+    ASTNode child; // Reference to the first child node
+private
+    ASTNode sibling; // Reference to the next sibling node
+
+    // Constructors, getters, setters, and other methods...
+
+    // Getters and setters for type, value, and sourceLineNumber
+
+public
+    ASTNode getChild()
+    {
+        return child;
+    }
+
+public
+    void setChild(ASTNode child)
+    {
+        this.child = child;
+    }
+
+public
+    ASTNode getSibling()
+    {
+        return sibling;
+    }
+
+public
+    void setSibling(ASTNode sibling)
+    {
+        this.sibling = sibling;
+    }
+}
+
+public class AST
+{
+private
+    ASTNode root; // The root of the Abstract Syntax Tree
+
+    // Constructors, getters, setters, and other methods...
+
+public
+    AST(ASTNode root)
+    {
+        this.root = root;
+    }
+
+public
+    ASTNode getRoot()
+    {
+        return root;
+    }
+
+public
+    void setRoot(ASTNode root)
+    {
+        this.root = root;
+    }
+
+    // Other methods for manipulating the AST...
+}
+
+CSEMachine *
+createCSEMachine(AST *ast)
 {
     if (!ast->isStandardized())
         exit(EXIT_FAILURE); // Handle the case where AST is not standardized
@@ -436,6 +573,7 @@ void applyGamma(Delta *currentDelta, ASTNode *node, Environment *currentEnv, Sta
         processControlStack(nextDelta, newEnv);
         return;
     }
+
     else if (rator->type == ASTNodeType_YSTAR)
     {
         // RULE 12
@@ -803,4 +941,313 @@ bool isReservedIdentifier(const char *value)
     }
 
     return false;
+};
+
+// --------------------------------- Delta ----------------------------------------
+
+// Function to initialize a new Delta instance
+Delta *new_Delta()
+{
+    Delta *delta = (Delta *)malloc(sizeof(Delta));
+    if (delta != NULL)
+    {
+        delta->type = DELTA;
+        delta->boundVars = new_List(); // You need to define and implement the List data structure in C
+        delta->linkedEnv = NULL;       // Initialize the linkedEnv to NULL
+        delta->body = new_Stack();     // You need to define and implement the Stack data structure in C
+        delta->index = 0;              // Initialize the index to a default value
+    }
+    return delta;
 }
+
+// Function to accept a NodeCopier visitor (not shown in the provided Java code)
+Delta *Delta_accept(NodeCopier *nodeCopier, Delta *delta)
+{
+    // Implement the NodeCopier functionality if required
+    // ...
+    return delta;
+}
+
+// Function to get the string representation of the lambda closure
+char *Delta_getValue(Delta *delta)
+{
+    // Implement the function to get the string representation of the lambda closure
+    // The code will be similar to the provided Java code for the getValue() method
+    // ...
+}
+
+// Function to get the list of bound variables
+List *Delta_getBoundVars(Delta *delta)
+{
+    return delta->boundVars;
+}
+
+// Function to add a bound variable to the list
+void Delta_addBoundVar(Delta *delta, char *boundVar)
+{
+    // Implement the function to add a bound variable to the list
+    // The code will be similar to the provided Java code for the addBoundVars() method
+    // ...
+}
+
+// Function to set the list of bound variables
+void Delta_setBoundVars(Delta *delta, List *boundVars)
+{
+    delta->boundVars = boundVars;
+}
+
+// Function to get the body of the lambda closure
+Stack *Delta_getBody(Delta *delta)
+{
+    return delta->body;
+}
+
+// Function to set the body of the lambda closure
+void Delta_setBody(Delta *delta, Stack *body)
+{
+    delta->body = body;
+}
+
+// Function to get the index of the lambda closure
+int Delta_getIndex(Delta *delta)
+{
+    return delta->index;
+}
+
+// Function to set the index of the lambda closure
+void Delta_setIndex(Delta *delta, int index)
+{
+    delta->index = index;
+}
+
+// Function to get the linked environment of the lambda closure
+Environment *Delta_getLinkedEnv(Delta *delta)
+{
+    return delta->linkedEnv;
+}
+
+// Function to set the linked environment of the lambda closure
+void Delta_setLinkedEnv(Delta *delta, Environment *linkedEnv)
+{
+    delta->linkedEnv = linkedEnv;
+}
+
+// --------------------------------- Environment ----------------------------------------
+
+Environment *new_Environment()
+{
+    Environment *env = (Environment *)malloc(sizeof(Environment));
+    if (env != NULL)
+    {
+        env->head = NULL;
+        env->parent = NULL;
+    }
+    return env;
+}
+
+// Function to add a new mapping to the environment
+void addMapping(Environment *env, char *key, ASTNode value)
+{
+    EnvironmentNode *new_node = (EnvironmentNode *)malloc(sizeof(EnvironmentNode));
+    if (new_node != NULL)
+    {
+        new_node->key = strdup(key); // Make a copy of the key string
+        new_node->value = value;
+        new_node->next = env->head;
+        env->head = new_node;
+    }
+}
+
+// Function to look up a key in the environment and its parent environments
+ASTNode lookup(Environment *env, char *key)
+{
+    EnvironmentNode *temp = env->head;
+    while (temp != NULL)
+    {
+        if (strcmp(temp->key, key) == 0)
+        {
+            return temp->value; // Return the found value
+        }
+        temp = temp->next;
+    }
+
+    // If the key is not found in this environment, check the parent environment recursively
+    if (env->parent != NULL)
+    {
+        return lookup(env->parent, key);
+    }
+
+    // If the key is not found in any environment, return NULL
+    return NULL;
+}
+
+// Function to delete the environment and free its memory
+void delete_Environment(Environment *env)
+{
+    while (env->head != NULL)
+    {
+        EnvironmentNode *temp = env->head;
+        env->head = env->head->next;
+        free(temp->key);
+        // Free any memory used by the ASTNode value, if needed
+        // ...
+        free(temp);
+    }
+    free(env);
+}
+
+// --------------------------------- Eta ----------------------------------------
+
+Eta *new_Eta()
+{
+    Eta *eta = (Eta *)malloc(sizeof(Eta));
+    if (eta != NULL)
+    {
+        eta->delta = NULL;
+    }
+    return eta;
+}
+
+// Function to set the Delta reference for the Eta
+void setDelta(Eta *eta, Delta *delta)
+{
+    eta->delta = delta;
+}
+
+// Function to delete the Eta and free its memory
+void delete_Eta(Eta *eta)
+{
+    free(eta);
+}
+
+// --------------------------------- Evaluate Error ----------------------------------------
+
+void printError(const char *fileName, int sourceLineNumber, const char *message);
+
+// Implementation
+void printError(const char *fileName, int sourceLineNumber, const char *message)
+{
+    printf("%s:%d: %s\n", fileName, sourceLineNumber, message);
+    exit(1);
+}
+
+// --------------------------------- Node Copier ----------------------------------------
+
+ASTNode *copy_ASTNode(ASTNode *astNode)
+{
+    ASTNode *copy = (ASTNode *)malloc(sizeof(ASTNode));
+    if (astNode->child != NULL)
+        copy->child = copy_ASTNode(astNode->child);
+    if (astNode->sibling != NULL)
+        copy->sibling = copy_ASTNode(astNode->sibling);
+    copy->type = astNode->type;
+    copy->value = astNode->value;
+    copy->sourceLineNumber = astNode->sourceLineNumber;
+    return copy;
+}
+
+Beta *copy_Beta(Beta *beta)
+{
+    Beta *copy = (Beta *)malloc(sizeof(Beta));
+    if (beta->child != NULL)
+        copy->child = copy_ASTNode(beta->child);
+    if (beta->sibling != NULL)
+        copy->sibling = copy_ASTNode(beta->sibling);
+    copy->type = beta->type;
+    copy->value = beta->value;
+    copy->sourceLineNumber = beta->sourceLineNumber;
+
+    // Copy thenBody
+    copy->thenBody = create_empty_stack();
+    StackNode *temp = beta->thenBody->top;
+    while (temp != NULL)
+    {
+        ASTNode *tempNode = (ASTNode *)temp->data;
+        ASTNode *tempCopy = copy_ASTNode(tempNode);
+        push(copy->thenBody, tempCopy);
+        temp = temp->next;
+    }
+
+    // Copy elseBody
+    copy->elseBody = create_empty_stack();
+    temp = beta->elseBody->top;
+    while (temp != NULL)
+    {
+        ASTNode *tempNode = (ASTNode *)temp->data;
+        ASTNode *tempCopy = copy_ASTNode(tempNode);
+        push(copy->elseBody, tempCopy);
+        temp = temp->next;
+    }
+
+    return copy;
+}
+
+Eta *copy_Eta(Eta *eta)
+{
+    Eta *copy = (Eta *)malloc(sizeof(Eta));
+    if (eta->child != NULL)
+        copy->child = copy_ASTNode(eta->child);
+    if (eta->sibling != NULL)
+        copy->sibling = copy_ASTNode(eta->sibling);
+    copy->type = eta->type;
+    copy->value = eta->value;
+    copy->sourceLineNumber = eta->sourceLineNumber;
+
+    copy->delta = copy_Delta(eta->delta);
+
+    return copy;
+}
+
+Delta *copy_Delta(Delta *delta)
+{
+    Delta *copy = (Delta *)malloc(sizeof(Delta));
+    if (delta->child != NULL)
+        copy->child = copy_ASTNode(delta->child);
+    if (delta->sibling != NULL)
+        copy->sibling = copy_ASTNode(delta->sibling);
+    copy->type = delta->type;
+    copy->value = delta->value;
+    copy->index = delta->index;
+    copy->sourceLineNumber = delta->sourceLineNumber;
+
+    // Copy body
+    copy->body = create_empty_stack();
+    StackNode *temp = delta->body->top;
+    while (temp != NULL)
+    {
+        ASTNode *tempNode = (ASTNode *)temp->data;
+        ASTNode *tempCopy = copy_ASTNode(tempNode);
+        push(copy->body, tempCopy);
+        temp = temp->next;
+    }
+
+    // Copy boundVars
+    copy->boundVars = create_empty_list();
+    ListNode *tempNode = delta->boundVars->front;
+    while (tempNode != NULL)
+    {
+        const char *boundVar = (const char *)tempNode->data;
+        char *boundVarCopy = strdup(boundVar);
+        add_to_list(copy->boundVars, boundVarCopy);
+        tempNode = tempNode->next;
+    }
+
+    copy->linkedEnv = delta->linkedEnv;
+
+    return copy;
+}
+
+Tuple *copy_Tuple(Tuple *tuple)
+{
+    Tuple *copy = (Tuple *)malloc(sizeof(Tuple));
+    if (tuple->child != NULL)
+        copy->child = copy_ASTNode(tuple->child);
+    if (tuple->sibling != NULL)
+        copy->sibling = copy_ASTNode(tuple->sibling);
+    copy->type = tuple->type;
+    copy->value = tuple->value;
+    copy->sourceLineNumber = tuple->sourceLineNumber;
+    return copy;
+}
+
+// --------------------------------- Tuple ----------------------------------------
