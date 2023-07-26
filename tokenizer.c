@@ -5,7 +5,7 @@
 #include <string.h>
 
 static struct lex_state LEX_STATE;
-static char ALL_PUNCTUATION[] = "(),;=|+-*/>";
+static char ALL_PUNCTUATION[] = "(),;=|+-*/>.";
 static int token_count;
 static int token_merged = 0;
 
@@ -353,7 +353,7 @@ struct rpal_token **screen(const struct rpal_token **tokens)
 
     struct rpal_token *end_token = malloc(sizeof(struct rpal_token));
     end_token->tkn_type = RPAL_TOKEN_END;
-    end_token->tkn_value = "$";
+    end_token->tkn_value = NULL;
     screened_tokens[i] = end_token;
 
     screened_tokens = realloc(screened_tokens, sizeof(struct rpal_token *) * (i + 2));
@@ -444,6 +444,10 @@ struct rpal_token *screen_identifier(struct rpal_token *token)
     {
         token->tkn_type = RPAL_TOKEN_KEYWORD;
     }
+    // else if (strcmp(token->tkn_value, "Print") == 0)
+    // {
+    //     token->tkn_type = RPAL_TOKEN_KEYWORD;
+    // }
     return token;
 }
 
@@ -464,7 +468,6 @@ struct rpal_token *screen_punctuation(struct rpal_token *token,
     if (
         strcmp("(", token->tkn_value) &&
         strcmp(")", token->tkn_value) &&
-        strcmp(",", token->tkn_value) &&
         strcmp(";", token->tkn_value))
     {
         token->tkn_type = RPAL_TOKEN_OPERATOR;
