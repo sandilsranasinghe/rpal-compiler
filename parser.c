@@ -40,7 +40,8 @@ typedef enum
     INTEGER,
     STRING,
     R_PAREN,
-    DELETE
+    DELETE,
+    END_TOKEN
     // Add other token types as needed
 } TokenType;
 
@@ -183,6 +184,30 @@ bool isEmpty() {
     return stack.top == -1;
 }
 
+void print_ast(ASTNode *ast_node, int depth) {
+    // pre order traversal
+    for (int i = 0; i < depth; i++) {
+        printf("-");
+    }
+    printf("%d %s\n", ast_node->type, ast_node->value == NULL ? "" : ast_node->value);
+    if (ast_node->child != NULL) {
+        print_ast(ast_node->child, depth+1);
+    }
+    if (ast_node->sibling != NULL) {
+        print_ast(ast_node->sibling, depth);
+    }
+
+}
+
+void print_stack() {
+    printf("\nStack: %d \n", stack.top);
+    for (int i = 0; i <= stack.top; i++) {
+        // printf("%s \n", stack.arr[i]->value);
+        print_ast(stack.arr[i], 0);
+        printf("\n");
+    }
+}
+
 // Main function
 int parse_main(struct rpal_token **_tokens) {
     tokens = _tokens;
@@ -197,6 +222,7 @@ int parse_main(struct rpal_token **_tokens) {
     ASTNode* astRoot = buildAST();
 
     // Use the generated AST as needed (e.g., evaluate, generate code, etc.)
+    print_ast(astRoot, 0);
 
     // Free the memory used by the stack and AST
     free(stack.arr);
@@ -231,8 +257,10 @@ ASTNode* buildNAryASTNode(ASTNodeType type, int ariness) {
             child->sibling = node->child;
         node->child = child;
         node->sourceLineNumber = child->sourceLineNumber;
+        
         ariness--;
     }
+    push(node);
 
     return node;
 }
@@ -251,7 +279,7 @@ void readNT() {
         struct rpal_token *_token = tokens[token_index];
         token_index++;
 
-        printf("Read token %s %d\n", _token->tkn_value, _token->tkn_type);
+        // printf("Read token %s %d\n", _token->tkn_value, _token->tkn_type);
 
         currentToken.sourceLineNumber = _token->line_number;
         currentToken.value = _token->tkn_value;
@@ -293,9 +321,11 @@ void readNT() {
             } else if (strcmp(_token->tkn_value, ")") == 0) {
                 currentToken.type = R_PAREN;
             }
+            break;
 
         case RPAL_TOKEN_END:
-            currentToken.type = DELETE;
+            currentToken.value = NULL;
+            currentToken.type = END_TOKEN;
             break;
 
         default:
@@ -307,23 +337,25 @@ void readNT() {
     if (currentToken.value != NULL) {
         if (currentToken.type == IDENTIFIER) {
             ASTNode* node = createTerminalASTNode(ASTNodeType_IDENTIFIER, currentToken.value, currentToken.sourceLineNumber);
-            push(node);
+            // push(node);
         } else if (currentToken.type == INTEGER) {
             ASTNode* node = createTerminalASTNode(ASTNodeType_INTEGER, currentToken.value, currentToken.sourceLineNumber);
-            push(node);
+            // push(node);
         } else if (currentToken.type == STRING) {
             ASTNode* node = createTerminalASTNode(ASTNodeType_STRING, currentToken.value, currentToken.sourceLineNumber);
-            push(node);
+            // push(node);
         }
     }
+    // printf("read succesfule - %s %d\n", currentToken.value, currentToken.type);
 }
 
 void startParse() {
     readNT();
     procE();
-    if (currentToken.value != NULL)
+    if (currentToken.value != NULL) {
         printf("%s\n", currentToken.value);
         printf("Expected EOF.\n");
+    }
 }
 
 ASTNode* buildAST() {
@@ -665,6 +697,7 @@ void procAP()
 void procRN()
 {
     printf("procRN\n");
+    // printf("entered rn with token %s %d\n", currentToken.value, currentToken.type);
 
     if (isCurrentTokenType(IDENTIFIER) ||
         isCurrentTokenType(INTEGER) ||
@@ -675,7 +708,6 @@ void procRN()
     }
     else if (isCurrentToken(RESERVED, "true"))
     { // R -> 'true' => 'true'
-        printf("currentToken.value: %s %d\n", currentToken.value, currentToken.type);
         createTerminalASTNode(ASTNodeType_TRUE, "true", currentToken.sourceLineNumber);
         readNT();
     }
@@ -697,7 +729,8 @@ void procRN()
         {
             printf("RN: ')' expected\n"); // Replace with appropriate error handling
         }
-        readNT();
+        // printf("procRN: (E) done\n");
+        // readNT();
     }
     else if (isCurrentToken(RESERVED, "dummy"))
     { // R -> 'dummy' => 'dummy'
@@ -709,12 +742,9 @@ void procRN()
 void procR()
 {
     printf("procR\n");
-    printf("currentToken.value: %s %d\n", currentToken.value, currentToken.type);
-    readNT();
-    printf("currentToken.value: %s %d\n", currentToken.value, currentToken.type);
+    // readNT();
     procRN(); // R -> Rn; NO extra readNT in procRN(). See while loop below for reason.
     readNT();
-    printf("currentToken.value: %s %d\n", currentToken.value, currentToken.type);
     while (isCurrentTokenType(INTEGER) ||
            isCurrentTokenType(STRING) ||
            isCurrentTokenType(IDENTIFIER) ||
@@ -732,8 +762,11 @@ void procR()
                   // and checking here if the last token read
                   // (which was read in procRN()) is an INTEGER, IDENTIFIER, or STRING and, if so,
                   // to pop it, call buildNAryASTNode, and then
-                  // push it again. I chose this option because it seems cleaner.
+                  // push it again. We chose this option because it seems cleaner.
+
+        // printf("procR: Rn done\n");
         buildNAryASTNode(ASTNodeType_GAMMA, 2);
+        // printf("Build gamma done\n");
         readNT();
     }
 }
